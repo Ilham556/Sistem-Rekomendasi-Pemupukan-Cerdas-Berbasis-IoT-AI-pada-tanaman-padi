@@ -1,0 +1,1611 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SoilMonitor - Dashboard Cerdas</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+
+<style>
+  /* --- 1. VARIABLES & RESET --- */
+  :root {
+    --bg-body: #0f172a;
+    --bg-sidebar: #020617;
+    --bg-card: #1e293b;
+    --border: rgba(255,255,255,0.08);
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --glass: rgba(255, 255, 255, 0.03);
+    --hover: rgba(255, 255, 255, 0.06); /* Ditambahkan untuk kode Anda */
+    --sidebar-width: 260px;
+    --header-height: 70px;
+  }
+
+  [data-theme="light"] {
+    --bg-body: #f1f5f9;
+    --bg-sidebar: #ffffff;
+    --bg-card: #ffffff;
+    --border: #e2e8f0;
+    --accent: #2563eb;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --glass: rgba(0,0,0,0.02);
+    --hover: rgba(0,0,0,0.05);
+  }
+
+  * { box-sizing: border-box; outline: none; }
+  body {
+    margin: 0;
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg-body);
+    color: var(--text-main);
+    overflow: hidden; 
+  }
+
+  /* --- 2. LAYOUT STRUCTURE --- */
+  .app-container {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: var(--sidebar-width);
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease;
+    z-index: 50;
+  }
+  .sidebar-header {
+    height: var(--header-height);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 700;
+    font-size: 20px;
+    gap: 10px;
+  }
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--accent), #60a5fa);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .nav-menu {
+    flex: 1;
+    padding: 20px 12px;
+    overflow-y: auto;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    color: var(--text-muted);
+    text-decoration: none;
+    border-radius: 8px;
+    margin-bottom: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .nav-item:hover { background: var(--glass); color: var(--text-main); }
+  .nav-item.active { background: rgba(59, 130, 246, 0.15); color: var(--accent); }
+  .nav-item svg { width: 20px; height: 20px; }
+  
+  .sidebar-footer {
+    padding: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* MAIN CONTENT */
+  .main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* HEADER */
+  .top-header {
+    height: var(--header-height);
+    background: var(--bg-body);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(10px);
+  }
+  .page-title { font-size: 18px; font-weight: 600; }
+  .header-actions { display: flex; gap: 12px; align-items: center; }
+
+  /* SCROLLABLE AREA */
+  .content-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+  }
+
+  /* --- 3. COMPONENTS --- */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+
+  
+  
+  .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 20px; }
+  .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 20px; }
+  .grid-full {
+    display: flex;
+    object-fit: fill;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    width: 100%;
+    margin-bottom: 20px;
+  }
+  /* KPI Cards */
+  .kpi-box {
+    background: var(--glass);
+    padding: 16px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+  }
+  .kpi-title { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .kpi-value { font-size: 28px; font-weight: 700; margin: 8px 0; color: var(--text-main); }
+  .kpi-trend { font-size: 12px; display: flex; align-items: center; gap: 4px; }
+  .up { color: var(--success); } .down { color: var(--danger); } .neutral { color: var(--text-muted); }
+
+  /* Buttons & Inputs */
+  .btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: none;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    background: var(--accent);
+    color: white;
+    transition: opacity 0.2s;
+  }
+  .btn:hover { opacity: 0.9; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-muted); }
+  .btn-outline:hover { background: var(--glass); color: var(--text-main); }
+  .btn-danger { background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2); }
+  
+    /* --- STYLE UNTUK CHART ANALYTICS --- */
+  .btn-filter {
+    background: transparent; border: none;
+    color: var(--text-muted); padding: 4px 10px;
+    border-radius: 6px; font-size: 11px; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-filter:hover { background: var(--glass); color: var(--text-main); }
+  .btn-filter.active { background: var(--accent); color: white; }
+  input, select {
+    background: var(--bg-body);
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+
+  /* Table */
+  .table-container { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { color: var(--text-muted); font-weight: 600; background: var(--glass); }
+  tr:hover { background: var(--glass); }
+
+  /* Utilities */
+  .hidden { display: none !important; }
+  .flex-between { display: flex; justify-content: space-between; align-items: center; }
+  .badge { padding: 4px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .bg-success { background: rgba(34, 197, 94, 0.1); color: var(--success); }
+  .bg-warning { background: rgba(245, 158, 11, 0.1); color: var(--warning); }
+  
+  /* Mobile Toggle */
+  .mobile-toggle { display: none; background: none; border: none; color: var(--text-main); cursor: pointer; }
+
+  /* Login Screen Override */
+  #login-container {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: var(--bg-body);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  .auth-box { width: 100%; max-width: 400px; padding: 30px; }
+
+  /* --- CSS UNTUK SIDEBAR COLLAPSE --- */
+
+  /* 1. Tombol Toggle di Header Sidebar */
+  .toggle-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .toggle-btn:hover { background: var(--glass); color: var(--text-main); }
+
+  /* 2. Kondisi Sidebar Mengecil (Collapsed) */
+  .sidebar.collapsed {
+    width: 70px; /* Lebar saat mengecil */
+  }
+
+  /* Sembunyikan Teks saat collapsed */
+  .sidebar.collapsed .logo-icon + span, 
+  .sidebar.collapsed .nav-item span, /* Asumsi teks ada di dalam span, atau text node */
+  .sidebar.collapsed .user-info,
+  .sidebar.collapsed .logout-text {
+    display: none;
+  }
+
+  /* Penyesuaian Layout saat collapsed */
+  .sidebar.collapsed .sidebar-header {
+    justify-content: center;
+    padding: 0;
+  }
+  .sidebar.collapsed .logo-icon {
+    margin: 0;
+  }
+  .sidebar.collapsed .nav-item {
+    justify-content: center;
+    padding: 12px;
+  }
+  .sidebar.collapsed .sidebar-footer {
+    padding: 12px 8px;
+  }
+  .sidebar.collapsed #userInitials {
+    margin: 0 auto; /* Tengah */
+  }
+  .sidebar.collapsed .btn-outline {
+    padding: 8px;
+    display: flex; justify-content: center;
+  }
+
+  /* Di Mobile, collapsed berarti tersembunyi total (sudah ada di kode sebelumnya),
+    tapi kita pastikan transisinya halus */
+  .mobile-only {
+  display: none !important; /* Sembunyikan tombol X di Laptop */
+  }
+  .desktop-only {
+    display: flex !important; /* Tampilkan tombol Panah di Laptop */
+  }
+
+  /* Tampilan Mobile (HP) */
+  @media (max-width: 768px) {
+    
+    /* Balik kondisinya saat di HP */
+    .mobile-only {
+      display: flex !important; /* Munculkan tombol X */
+      border: none;             /* Hapus border kotak agar lebih bersih */
+      font-size: 24px;
+    }
+    
+    .desktop-only {
+      display: none !important; /* Sembunyikan tombol Panah */
+    }
+
+    /* Penyesuaian Header di HP agar tombol X ada di kanan */
+    .sidebar-header {
+      padding-right: 20px; 
+    }
+  }
+
+  /* --- RESPONSIVE / MOBILE STYLE --- */
+  @media (max-width: 768px) {
+    /* 1. Sidebar Mobile: Hidden Default (Off-canvas) */
+    .sidebar { 
+      position: fixed; 
+      height: 100%; 
+      left: 0; top: 0;
+      width: 260px !important; /* Paksa lebar penuh saat muncul */
+      transform: translateX(-100%); /* Sembunyi total ke kiri */
+      transition: transform 0.3s ease;
+      z-index: 999;
+    }
+
+    /* 2. Sidebar Mobile: Muncul saat class .open aktif (via Burger) */
+    .sidebar.open { 
+      transform: translateX(0); 
+    }
+
+    /* 3. Overlay Gelap saat sidebar mobile terbuka (Opsional, agar fokus) */
+    .sidebar.open::before {
+      content: '';
+      position: fixed; top: 0; left: 260px; width: 100vw; height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: -1;
+    }
+
+    /* 4. Layout Utama Mobile */
+    .app-container { flex-direction: column; }
+    .main-content { width: 100%; margin-left: 0 !important; }
+    .grid-2 { grid-template-columns: 1fr; }
+    
+    /* 5. Tampilkan Tombol Burger di Header */
+    .mobile-toggle { display: block; font-size: 24px; }
+
+    /* 6. SEMBUNYIKAN Tombol Panah (Desktop Toggle) di HP */
+    .toggle-btn { display: none !important; }
+    
+    /* 7. Pastikan fitur collapse desktop TIDAK jalan di HP */
+    .sidebar.collapsed { width: 260px !important; }
+    .sidebar.collapsed .logo-icon + span, 
+    .sidebar.collapsed .nav-item span,
+    .sidebar.collapsed .user-info { display: block !important; }
+  }
+  /* --- MODAL EDIT USER --- */
+  .modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000;
+    opacity: 0; visibility: hidden; transition: all 0.3s;
+  }
+  .modal-overlay.open { opacity: 1; visibility: visible; }
+  .modal-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 24px; width: 400px; max-width: 90%;
+    border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    transform: translateY(20px); transition: transform 0.3s;
+  }
+  .modal-overlay.open .modal-box { transform: translateY(0); }
+  .modal-header { font-size: 18px; font-weight: 700; margin-bottom: 16px; display: flex; justify-content: space-between; }
+  .close-modal { cursor: pointer; background: none; border: none; color: var(--text-muted); font-size: 20px; }
+</style>
+</head>
+<body data-theme="dark">
+
+<div id="login-container">
+  <div class="card auth-box">
+    <div style="text-align:center; margin-bottom:20px;">
+      <div class="logo-icon" style="width:50px; height:50px; margin:0 auto 10px; font-size:24px;">🌾</div>
+      <h2>SoilMonitor</h2>
+      <p style="color:var(--text-muted)">Masuk untuk memantau lahan Anda</p>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:12px; color:var(--text-muted)">Surel</label>
+      <input type="email" id="email" style="width:100%" placeholder="admin@example.com">
+    </div>
+    <div style="margin-bottom:20px;">
+      <label style="font-size:12px; color:var(--text-muted)">Kata Sandi</label>
+      <input type="password" id="password" style="width:100%" placeholder="••••••">
+    </div>
+    <button class="btn" id="signInBtn" style="width:100%">Masuk</button>
+    <div style="margin-top:12px; text-align:center;">
+       <button class="btn-outline" id="demoBtn" style="padding:4px 10px; font-size:11px;">Mode Demo (Tanpa Login)</button>
+    </div>
+    <p id="loginMsg" style="color:var(--danger); font-size:12px; text-align:center; margin-top:10px;"></p>
+  </div>
+</div>
+
+<div id="app-layout" class="app-container hidden">
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-header" style="justify-content: space-between; padding-right: 15px;">
+      
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div class="logo-icon">🌾</div>
+        <span id="brandName" style="white-space:nowrap;">SoilMonitor</span>
+      </div>
+
+      <button class="toggle-btn desktop-only" onclick="toggleSidebarDesktop()" title="Kecilkan Sidebar">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+      </button>
+
+      <button class="toggle-btn mobile-only" onclick="toggleSidebar()" title="Tutup Menu">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+
+    </div>
+    
+    <div class="nav-menu">
+      <div class="nav-item active" onclick="navigate('dashboard')" title="Dasbor">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+        <span>Dasbor</span>
+      </div>
+      <div class="nav-item" onclick="navigate('history')" title="Riwayat Data">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        <span>Riwayat Data</span>
+      </div>
+      <div class="nav-item" onclick="navigate('devices')" title="Perangkat">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+        <span>Perangkat</span>
+      </div>
+      <div class="nav-item" id="nav-admin" style="display:none;" onclick="navigate('admin')" title="Admin Panel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+        <span>Admin Panel</span>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+        <div style="width:32px; height:32px; background:var(--glass); border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; flex-shrink: 0;" id="userInitials">U</div>
+        <div class="user-info" style="flex:1; overflow:hidden;">
+          <div style="font-size:13px; font-weight:600; white-space:nowrap;" id="userName">User</div>
+          <div style="font-size:11px; color:var(--text-muted); white-space:nowrap;" id="userRole">Viewer</div>
+        </div>
+      </div>
+      <button class="btn-outline" style="width:100%; font-size:12px;" onclick="doLogout()" title="Keluar">
+          <span class="logout-text">Keluar</span>
+          <svg class="logout-icon" style="display:none; width:16px; height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+      </button>
+    </div>
+  </nav>
+
+  <main class="main-content">
+    
+    <header class="top-header">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <button class="mobile-toggle" onclick="toggleSidebar()">☰</button>
+        <div class="page-title" id="pageTitle">Dasbor Utama</div>
+      </div>
+      <div class="header-actions">
+        <button class="btn-outline" onclick="toggleTheme()" title="Ganti Tema">◑</button>
+        <select id="globalDeviceSelect" style="max-width:150px;">
+            <option value="">Memuat...</option>
+        </select>
+        <div class="badge bg-success" id="connectionStatus">● Online</div>
+      </div>
+    </header>
+
+    <div class="content-scroll">
+      
+      <div id="view-dashboard" class="view-section">
+        <div class="grid-4">
+          <div class="kpi-box">
+            <span class="kpi-title">Kualitas Tanah</span>
+            <div class="kpi-value" id="kpi-soil">--</div>
+            <div class="kpi-trend neutral" id="trend-soil">--%</div>
+          </div>
+          <div class="kpi-box">
+            <span class="kpi-title">Nutrisi</span>
+            <div class="kpi-value" id="kpi-nutrient">--</div>
+            <div class="kpi-trend neutral" id="trend-nutrient">--%</div>
+          </div>
+          <div class="kpi-box">
+            <span class="kpi-title">Efisiensi Air</span>
+            <div class="kpi-value" id="kpi-water">--</div>
+            <div class="kpi-trend neutral" id="trend-water">--%</div>
+          </div>
+          <div class="kpi-box">
+            <span class="kpi-title">Potensi Tumbuh</span>
+            <div class="kpi-value" id="kpi-growth">--</div>
+            <div class="kpi-trend neutral" id="trend-growth">--%</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card" style="margin:0;">
+            <div class="flex-between" style="flex-wrap: wrap; gap:10px; margin-bottom:15px;">
+              <div>
+                <h3 style="margin:0; font-size:16px;">Analitik Tren & Data</h3>
+                <div class="text-muted" style="font-size:11px;">Geser/Cubit chart untuk zoom</div>
+              </div>
+              
+              <div style="display:flex; gap:5px; background:var(--bg-body); padding:4px; border-radius:8px;">
+                <button class="btn-filter active" onclick="setChartRange(12)">12 Jam</button>
+                <button class="btn-filter" onclick="setChartRange(24)">24 Jam</button>
+                <button class="btn-filter" onclick="setChartRange(168)">7 Hari</button>
+                <button class="btn-filter" onclick="resetZoomChart()">Reset</button>
+              </div>
+            </div>
+
+            <div style="position: relative; height: 350px; width: 100%;">
+                <canvas id="mainChart"></canvas>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:20px;">
+            <div class="card" style="margin:0; flex:1;">
+               <h3 style="margin:0 0 15px 0; font-size:16px;">Sensor Terkini</h3>
+               <div id="sensorGrid" style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                  </div>
+            </div>
+          </div>
+        </div>
+        <div class="grid-full">
+            <div class="card" style="margin:0; border-left: 4px solid var(--accent); flex:1; object-fit: fill;">
+                <div class="flex-between">
+                  <h3 style="margin:0; font-size:16px;">Rekomendasi AI</h3>
+                  <select id="recMode" style="font-size:11px; padding:2px;"><option value="ringkas">Ringkas</option><option value="detail">Detail</option></select>
+                </div>
+                <div id="recommendationArea" style="margin-top:10px; font-size:14px; line-height:1.5;">
+                    <span class="text-muted">Memuat analisis...</span>
+                </div>
+              </div>
+            </div>
+      </div>
+
+      <div id="view-history" class="view-section hidden">
+        <div class="card">
+          <div class="flex-between" style="flex-wrap:wrap; gap:10px; margin-bottom:20px;">
+            <div style="display:flex; gap:10px; align-items:center;">
+              <input type="date" id="filterStartDate">
+              <span>s/d</span>
+              <input type="date" id="filterEndDate">
+              <button class="btn" onclick="loadHistoryData()">Filter Data</button>
+            </div>
+            <div style="display:flex; gap:10px;">
+              <button class="btn-outline" onclick="exportData('csv')">📄 CSV</button>
+              <button class="btn-outline" onclick="exportData('json')">📦 JSON</button>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table id="historyTable">
+              <thead>
+                <tr>
+                  <th>Waktu</th>
+                  <th>Kelembapan</th>
+                  <th>Suhu Tanah</th>
+                  <th>EC</th>
+                  <th>Salinitas</th>
+                  <th>Suhu Udara</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td colspan="6" style="text-align:center;">Silakan filter data terlebih dahulu.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="flex-between" style="margin-top:20px; border-top:1px solid var(--border); padding-top:15px; align-items:center;">
+            
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span class="text-muted" style="font-size:13px;">Tampilkan:</span>
+              <select id="rowsPerPage" onchange="changePageSize()" style="width:auto; padding:4px 8px;">
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+              <span class="text-muted" style="font-size:13px;" id="showingText">Menampilkan 0-0 dari 0 data</span>
+            </div>
+
+            <div style="display:flex; gap:5px;">
+              <button class="btn-outline" onclick="prevPage()" id="btnPrev" disabled>« Prev</button>
+              <span id="pageIndicator" style="display:flex; align-items:center; padding:0 10px; font-size:13px; font-weight:bold;">Hal 1</span>
+              <button class="btn-outline" onclick="nextPage()" id="btnNext" disabled>Next »</button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <div id="view-devices" class="view-section hidden">
+        <div class="card">
+          <h3>Daftar Perangkat Terhubung</h3>
+          <p class="text-muted" style="font-size:13px;">Kelola perangkat IoT yang terdaftar pada sistem.</p>
+          <div id="deviceListContainer" style="margin-top:20px;">
+             </div>
+        </div>
+      </div>
+
+      <div id="view-admin" class="view-section hidden">
+        <div class="grid-2">
+            <div class="card">
+                <h3>Tambah Pengguna</h3>
+                <div style="display:grid; gap:12px; margin-top:15px;">
+                    <input type="text" id="newUserName" placeholder="Nama Lengkap">
+                    <input type="email" id="newUserEmail" placeholder="Email Pengguna">
+                    <input type="password" id="newUserPass" placeholder="Kata Sandi Awal">
+                    <select id="newUserRole">
+                        <option value="user">User (Viewer)</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                    <button class="btn" onclick="adminAddUser()">Tambah Pengguna</button>
+                    <p id="adminMsg" style="font-size:12px; margin:0;"></p>
+                </div>
+            </div>
+            <div class="card">
+                <h3>Daftar Pengguna</h3>
+                <div class="table-container" style="max-height:300px; overflow-y:auto;">
+                    <table id="userTable">
+                        <thead><tr><th>Nama</th><th>Email</th><th>Role</th><th>Aksi</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+<div id="editUserModal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span>Edit Pengguna</span>
+      <button class="close-modal" onclick="closeEditModal()">×</button>
+    </div>
+    <div style="display:grid; gap:12px;">
+      <input type="hidden" id="editUserId">
+      
+      <div>
+        <label style="font-size:12px; color:var(--text-muted)">Nama Lengkap</label>
+        <input type="text" id="editName" style="width:100%">
+      </div>
+      
+      <div>
+        <label style="font-size:12px; color:var(--text-muted)">Email</label>
+        <input type="email" id="editEmail" style="width:100%">
+      </div>
+
+      <div>
+        <label style="font-size:12px; color:var(--text-muted)">Role</label>
+        <select id="editRole" style="width:100%">
+          <option value="user">User (Viewer)</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+
+      <div>
+        <label style="font-size:12px; color:var(--text-muted)">Kata Sandi Baru (Opsional)</label>
+        <input type="password" id="editPass" style="width:100%" placeholder="Kosongkan jika tidak ingin ubah">
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:10px;">
+        <button class="btn" style="flex:1" onclick="saveEditUser()">Simpan Perubahan</button>
+        <button class="btn-outline" style="flex:1" onclick="closeEditModal()">Batal</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+/* ---------------- CONFIG ---------------- */
+const SUPABASE_URL = "https://rxthvgmkbxgblszhqnnv.supabase.co"; 
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4dGh2Z21rYnhnYmxzemhxbm52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI0MjAzNjAsImV4cCI6MjA3Nzk5NjM2MH0.18hZwWhUCQJoH83kBRjV5PKGxIUgfs9D9f1Hea-pYeY"; 
+const DEFAULT_DEVICE = "2384180d-c274-4308-8ca3-c2270302be82";
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Global State
+let currentUser = null;
+let currentDeviceId = DEFAULT_DEVICE;
+let chartInstance = null;
+let historyDataCache = [];
+let dashboardInterval = null;
+let knnModel = null;
+let chartLimit = 12;
+// DOM Elements
+const views = ['dashboard', 'history', 'devices', 'admin'];
+const recommendationArea = document.getElementById('recommendationArea');
+
+/* ---------------- INITIALIZATION ---------------- */
+document.addEventListener('DOMContentLoaded', async () => {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('filterEndDate').value = today;
+    const lastWeek = new Date(); lastWeek.setDate(lastWeek.getDate() - 7);
+    document.getElementById('filterStartDate').value = lastWeek.toISOString().split('T')[0];
+
+    try {
+        const res = await fetch('knn_pupuk_model.json');
+        if(res.ok) {
+            knnModel = await res.json();
+            console.log("🤖 Model AI berhasil dimuat");
+        }
+    } catch(e) { console.warn("Model AI tidak ditemukan"); }
+});
+
+/* ---------------- AUTHENTICATION ---------------- */
+async function hashPassword(str) {
+    const buf = new TextEncoder().encode(str);
+    const hash = await crypto.subtle.digest('SHA-256', buf);
+    return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+document.getElementById('signInBtn').onclick = async () => {
+    const email = document.getElementById('email').value.trim();
+    const pass = document.getElementById('password').value.trim();
+    const msg = document.getElementById('loginMsg');
+    
+    if(!email || !pass) { msg.textContent = "Mohon lengkapi data"; return; }
+    
+    const hashed = await hashPassword(pass);
+    const { data, error } = await sb.from('users').select('*').eq('email', email).eq('password', hashed).maybeSingle();
+    
+    if(data) loginSuccess(data);
+    else msg.textContent = "Email atau password salah";
+};
+
+document.getElementById('demoBtn').onclick = () => {
+    loginSuccess({ name: 'Demo Pengguna', email: 'demo@soil.id', role: 'user', id: 'demo' });
+};
+
+function loginSuccess(user) {
+    currentUser = user;
+    document.getElementById('login-container').classList.add('hidden');
+    document.getElementById('app-layout').classList.remove('hidden');
+    document.getElementById('userName').textContent = user.name;
+    document.getElementById('userRole').textContent = user.role === 'admin' ? 'Administrator' : 'Pengguna';
+    document.getElementById('userInitials').textContent = user.name.charAt(0).toUpperCase();
+
+    if(user.role === 'admin') document.getElementById('nav-admin').style.display = 'flex';
+    loadDeviceList();
+    navigate('dashboard');
+}
+
+function doLogout() { window.location.reload(); }
+
+/* ---------------- NAVIGATION ---------------- */
+window.navigate = function(viewId) {
+    views.forEach(v => document.getElementById(`view-${v}`).classList.add('hidden'));
+    document.getElementById(`view-${viewId}`).classList.remove('hidden');
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    
+    const index = views.indexOf(viewId);
+    if(index !== -1 && document.querySelectorAll('.nav-menu .nav-item')[index]) {
+        document.querySelectorAll('.nav-menu .nav-item')[index].classList.add('active');
+    }
+
+    const titles = { 'dashboard': 'Dasbor Pemantauan', 'history': 'Riwayat Data', 'devices': 'Perangkat', 'admin': 'Admin Panel' };
+    document.getElementById('pageTitle').textContent = titles[viewId];
+    document.getElementById('sidebar').classList.remove('open');
+
+    if(dashboardInterval) clearInterval(dashboardInterval);
+
+    if(viewId === 'dashboard') {
+        loadDashboardData();
+        dashboardInterval = setInterval(loadDashboardData, 8000); 
+    }
+    if(viewId === 'history') loadHistoryData();
+    if(viewId === 'devices') renderDeviceListUI();
+    if(viewId === 'admin') loadAdminData();
+}
+
+/* --- FUNGSI TOGGLE KHUSUS MOBILE (BURGER) --- */
+  function toggleSidebar() {
+      // Hanya mainkan class 'open' untuk slide in/out
+      document.getElementById('sidebar').classList.toggle('open');
+      
+      // Opsional: Tutup sidebar jika klik di luar (area konten)
+      // Bisa ditambahkan listener click event body jika diinginkan
+  }
+
+function toggleSidebarDesktop() {
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = sidebar.querySelector('.toggle-btn svg');
+    const brandName = document.getElementById('brandName');
+    
+    // Toggle class collapsed
+    sidebar.classList.toggle('collapsed');
+    
+    // Putar Icon Panah
+    if (sidebar.classList.contains('collapsed')) {
+        // Jika tertutup, panah ke kanan (atau ikon menu)
+        toggleBtn.innerHTML = '<path d="M9 18l6-6-6-6"/>'; // Panah Kanan
+        brandName.style.display = 'none'; // Sembunyikan Judul
+        
+        // Atur ikon logout agar muncul saat kecil
+        document.querySelector('.logout-text').style.display = 'none';
+        document.querySelector('.logout-icon').style.display = 'block';
+    } else {
+        // Jika terbuka, panah ke kiri
+        toggleBtn.innerHTML = '<path d="M15 18l-6-6 6-6"/>'; // Panah Kiri
+        brandName.style.display = 'block';
+        
+        document.querySelector('.logout-text').style.display = 'inline';
+        document.querySelector('.logout-icon').style.display = 'none';
+    }
+}
+function toggleTheme() {
+    const body = document.body;
+    body.setAttribute('data-theme', body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+}
+
+/* ---------------- DATA LOADER ---------------- */
+async function loadDeviceList() {
+    const select = document.getElementById('globalDeviceSelect');
+    const { data } = await sb.from('readings').select('device_id').order('device_id'); 
+    const unique = [...new Set(data.map(d=>d.device_id))];
+    
+    select.innerHTML = '';
+    unique.forEach(dev => {
+        const opt = document.createElement('option');
+        opt.value = dev;
+        opt.textContent = dev.substring(0, 8) + '...';
+        if(dev === DEFAULT_DEVICE) opt.selected = true;
+        select.appendChild(opt);
+    });
+
+    select.onchange = () => {
+        currentDeviceId = select.value;
+        const activeView = views.find(v => !document.getElementById(`view-${v}`).classList.contains('hidden'));
+        if(activeView === 'dashboard') loadDashboardData();
+        if(activeView === 'history') loadHistoryData();
+    };
+}
+
+async function loadDashboardData() {
+    const { data } = await sb
+        .from('readings')
+        .select('*')
+        .eq('device_id', currentDeviceId)
+        .order('timestamp', {ascending: false})
+        .limit(chartLimit * 2); // Ambil lebih banyak data untuk range lebar
+
+    if(!data || data.length === 0) return;
+
+    const latest = data[0];
+    
+    updateKPI('soil', calculateSoilIndex(latest));
+    updateKPI('nutrient', calculateNutrientIndex(latest));
+    updateKPI('water', calculateWaterIndex(latest));
+    updateKPI('growth', calculateGrowthIndex(latest));
+
+    const grid = document.getElementById('sensorGrid');
+    grid.innerHTML = `
+        <div class="kpi-box"><small>Kelembapan</small><b>${Number(latest.soil_moisture).toFixed(1)}%</b></div>
+        <div class="kpi-box"><small>Suhu Tanah</small><b>${Number(latest.soil_temp).toFixed(1)}°C</b></div>
+        <div class="kpi-box"><small>EC</small><b>${latest.soil_ec} µS</b></div>
+        <div class="kpi-box"><small>Suhu Udara</small><b>${Number(latest.air_temp).toFixed(1)}°C</b></div>
+        <div class="kpi-box"><small>TDS</small><b>${latest.soil_tds} mg/L</b></div>
+        <div class="kpi-box"><small>Salinitas</small><b>${latest.soil_salinity}</b></div>
+    `;
+
+    renderChart(data.slice().reverse());
+    
+    // 1. Hitung rekomendasi lokal sebagai fallback/data awal
+    const computedRec = computeLocalRecommendation(latest);
+    
+    // 2. Panggil fungsi render canggih Anda
+    await renderRecommendation(computedRec);
+
+    document.getElementById('lastUpdated').textContent = "Update: " + new Date(latest.timestamp).toLocaleTimeString();
+}
+
+/* =========================================
+   FUNGSI REKOMENDASI (KODE ANDA)
+   ========================================= */
+
+function setChartRange(hours) {
+    chartLimit = hours; // Di aplikasi nyata, ini bisa mengatur 'limit' query database
+    
+    // Update tampilan tombol aktif
+    document.querySelectorAll('.btn-filter').forEach(b => {
+        b.classList.remove('active');
+        if(b.textContent.includes(hours < 100 ? hours : '7')) b.classList.add('active');
+    });
+
+    // Reload data dengan limit baru
+    loadDashboardData(); 
+}
+function resetZoomChart() {
+    if(chartInstance) chartInstance.resetZoom();
+}
+async function renderRecommendation(rec) {
+  let toRender = rec;
+
+  try {
+    // 1) Try rekomendasi table
+    const { data: savedRec, error } = await sb
+      .from('rekomendasi')
+      .select('*')
+      .eq('device_id', currentDeviceId)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (!error && savedRec && savedRec.length) {
+      const r = savedRec[0];
+      // Normalize fields (they may be stored as newline-separated strings)
+      const bullets = (typeof r.bullets === 'string') ? r.bullets.split('\n').map(s => s.trim()).filter(Boolean) : (r.bullets || []);
+      const actions = (typeof r.actions === 'string') ? r.actions.split('\n').map(s => s.trim()).filter(Boolean) : (r.actions || []);
+      const products = (typeof r.products === 'string') ? r.products.split('\n').map(s => s.trim()).filter(Boolean) : (r.products || []);
+      toRender = { title: r.title || 'Rekomendasi', bullets, actions, products, timestamp: r.created_at || r.timestamp };
+    }
+  } catch (e) {
+    console.warn('Gagal ambil rekomendasi dari tabel rekomendasi:', e);
+  }
+
+  if (!toRender) {
+    // 2) Try latest reading's rekomendasi column
+    try {
+      const { data: latestReading, error: readErr } = await sb
+        .from('readings')
+        .select('*')
+        .eq('device_id', currentDeviceId)
+        .order('timestamp', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!readErr && latestReading && latestReading.rekomendasi) {
+        // rekomendasi column may be JSON string or plain text
+        let parsed = null;
+        try {
+          parsed = JSON.parse(latestReading.rekomendasi);
+        } catch (e) {
+          // not JSON, treat as plain newline-separated text
+        }
+
+        if (parsed && typeof parsed === 'object') {
+          const bullets = parsed.bullets || [];
+          const actions = parsed.actions || [];
+          const products = parsed.products || [];
+          toRender = { title: parsed.title || 'Rekomendasi', bullets, actions, products, timestamp: latestReading.timestamp };
+        } else {
+          // plain text -> split lines
+          const lines = String(latestReading.rekomendasi).split('\n').map(s => s.trim()).filter(Boolean);
+          toRender = { title: lines[0] || 'Rekomendasi', bullets: lines.slice(1), actions: [], products: [], timestamp: latestReading.timestamp };
+        }
+      }
+    } catch (e) {
+      console.warn('Gagal baca rekomendasi dari readings:', e);
+    }
+  }
+
+  // 3) fallback to computed rec
+  if (!toRender) {
+    if (!rec) {
+      recommendationArea.innerHTML = '<div class="muted small">Tidak ada rekomendasi saat ini</div>';
+      return;
+    }
+    toRender = rec;
+  }
+
+  // Get current recMode (ringkas or detail)
+  let recMode = 'ringkas';
+  try {
+    const stored = localStorage.getItem('recMode') || document.getElementById('recMode').value;
+    if (stored === 'detail') recMode = 'detail';
+  } catch (e) {
+    // fallback to ringkas
+  }
+
+  // Now render 'toRender' based on recMode
+  let html = `<div class="rec"><strong>${toRender.title}</strong><div style="height:8px"></div>`;
+
+  if (recMode === 'ringkas') {
+    // RINGKAS MODE: Show only first 2 bullets, no actions or products
+    if (toRender.bullets && toRender.bullets.length) {
+      const displayBullets = toRender.bullets.slice(0, 2);
+      html += '<ul>';
+      displayBullets.forEach(b => html += `<li>${b}</li>`);
+      html += '</ul>';
+      
+      // If there are more than 2 bullets, show a note
+      if (toRender.bullets.length > 2) {
+        html += `<div class="muted tiny" style="margin-top:6px">... dan ${toRender.bullets.length - 2} penjelasan lainnya (lihat mode Detail untuk lengkap)</div>`;
+      }
+    }
+    html += '<div class="muted tiny" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">Mode: Ringkas (tampilkan mode Detail untuk aksi dan produk)</div>';
+  } else {
+    // DETAIL MODE: Show everything
+    // 🧩 Daftar penjelasan utama
+    if (toRender.bullets && toRender.bullets.length) {
+      html += '<ul>';
+      toRender.bullets.forEach(b => html += `<li>${b}</li>`);
+      html += '</ul>';
+    }
+
+    // ⚙️ Tindakan yang disarankan
+    if (toRender.actions && toRender.actions.length) {
+      html += '<div style="height:6px"></div><strong>Tindakan yang disarankan</strong><ul>';
+      toRender.actions.forEach(a => html += `<li>${a}</li>`);
+      html += '</ul>';
+    }
+
+    // 🛒 Produk rekomendasi yang bisa diklik ke marketplace
+    if (toRender.products && toRender.products.length) {
+      html += `
+        <div style="height:6px"></div>
+        <strong>Produk Pupuk yang Disarankan</strong>
+        <div style="display:grid;gap:8px;margin-top:8px">
+      `;
+
+      toRender.products.forEach(raw => {
+        // Products may arrive as object {name,dose,notes} or as a single string (from DB).
+        let name = '';
+        let dose = '';
+        if (typeof raw === 'string') {
+          // Try to extract name and dose from common formats like "Name (dose): notes" or "Name (dose)"
+          const beforeColon = raw.split(':')[0];
+          const parenMatch = beforeColon.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+          if (parenMatch) {
+            name = parenMatch[1].trim();
+            dose = parenMatch[2].trim();
+          } else {
+            // fallback: use entire string as name
+            name = beforeColon.trim();
+          }
+        } else if (typeof raw === 'object' && raw !== null) {
+          name = raw.name || raw.title || '';
+          dose = raw.dose || raw.qty || '';
+        }
+
+        // final fallbacks
+        if (!name && raw) name = String(raw);
+        if (!name) name = 'Produk';
+
+        const searchQuery = encodeURIComponent(name);
+        const marketplaceUrl = `https://www.tokopedia.com/search?st=product&q=${searchQuery}`;
+
+        html += `
+          <a href="${marketplaceUrl}" target="_blank" style="text-decoration:none;color:inherit;">
+            <div style="
+              padding:10px;
+              border-radius:8px;
+              background:var(--glass);
+              cursor:pointer;
+              transition:all 0.2s;
+            " onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background='var(--glass)'">
+              <strong>${name}</strong>
+              <div class="muted small">${dose}</div>
+              <div class="muted tiny">🔍 Klik untuk cari di Tokopedia</div>
+            </div>
+          </a>
+        `;
+      });
+
+      html += '</div>';
+    }
+    
+    html += '<div class="muted tiny" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">Mode: Detail (lihat mode Ringkas untuk versi ringkas)</div>';
+  }
+
+  html += '</div>';
+  recommendationArea.innerHTML = html;
+}
+
+// Handler Ganti Mode Ringkas/Detail
+document.getElementById('recMode').onchange = (e) => {
+    localStorage.setItem('recMode', e.target.value);
+    loadDashboardData(); 
+};
+
+
+/* =========================================
+   LOGIC AI & RULES (LOCAL COMPUTATION)
+   ========================================= */
+function computeLocalRecommendation(latest) {
+    let title = "Analisis AI";
+    let bullets = [];
+    let actions = [];
+    let products = [];
+    
+    // 1. Cek Rule-Based
+    const m = Number(latest.soil_moisture);
+    const t = Number(latest.soil_temp);
+    const ec = Number(latest.soil_ec);
+    let isCritical = false;
+
+    if (m < 30) {
+        title = "⚠️ Tanah Kering";
+        bullets.push("Kelembapan di bawah 30%. Akar sulit menyerap nutrisi.");
+        actions.push("Siram tanah hingga lembap (> 40%) sebelum pemupukan.");
+        isCritical = true;
+    } else if (t > 35) {
+        title = "⚠️ Suhu Tinggi";
+        bullets.push("Suhu tanah panas. Risiko penguapan tinggi.");
+        actions.push("Tunda pemupukan hingga sore hari.");
+        isCritical = true;
+    } else if (ec > 1800) {
+        title = "⚠️ Salinitas Tinggi";
+        bullets.push("Kadar garam tinggi. Risiko tanaman terbakar.");
+        actions.push("Lakukan flushing (siram air berlebih).");
+        isCritical = true;
+    }
+
+    // 2. Jika Aman, Jalankan KNN
+    if (!isCritical) {
+        if (knnModel) {
+            const sample = [m, t, ec, Number(latest.soil_salinity), Number(latest.soil_tds), Number(latest.air_temp), Number(latest.air_humidity)];
+            const result = runKNN(sample);
+            const product = result || "NPK Seimbang";
+            
+            title = `✅ Rekomendasi: ${product}`;
+            
+            if(product.includes('Urea')) {
+                bullets.push("Kebutuhan Nitrogen tinggi terdeteksi.");
+                actions.push("Tabur Urea di sekitar akar.");
+                products.push({name: "Pupuk Urea", dose: "50-100 kg/ha"});
+            } else if(product.includes('SP-36')) {
+                bullets.push("Defisiensi Fosfor terdeteksi.");
+                actions.push("Berikan SP-36 untuk akar.");
+                products.push({name: "Pupuk SP-36", dose: "75-100 kg/ha"});
+            } else if(product.includes('KCl')) {
+                bullets.push("Kebutuhan Kalium tinggi.");
+                actions.push("Berikan KCl untuk buah/batang.");
+                products.push({name: "Pupuk KCl", dose: "50 kg/ha"});
+            } else {
+                bullets.push("Kondisi seimbang, lakukan pemupukan maintenance.");
+                products.push({name: "NPK 16-16-16", dose: "Dosis Standar"});
+            }
+        } else {
+            title = "Rule-Based (AI Loading...)";
+            bullets.push("Data sedang dianalisis.");
+        }
+    }
+
+    return { title, bullets, actions, products };
+}
+
+function runKNN(sample) {
+    if(!knnModel) return null;
+    const { n_neighbors, X_train, y_train, classes } = knnModel;
+    const distances = X_train.map((row, i) => ({
+        dist: Math.sqrt(row.reduce((sum, val, j) => sum + Math.pow(val - sample[j], 2), 0)),
+        label: y_train[i]
+    }));
+    distances.sort((a, b) => a.dist - b.dist);
+    const kNearest = distances.slice(0, n_neighbors);
+    const counts = {};
+    kNearest.forEach(n => { counts[n.label] = (counts[n.label] || 0) + 1; });
+    const bestIndex = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+    return classes[bestIndex];
+}
+
+/* ---------------- HELPER & CHARTS ---------------- */
+function updateKPI(id, value) {
+    document.getElementById(`kpi-${id}`).textContent = value;
+    const trendEl = document.getElementById(`trend-${id}`);
+    if(value > 75) trendEl.innerHTML = '<span class="up">↑ Optimal</span>';
+    else if(value < 40) trendEl.innerHTML = '<span class="down">↓ Kurang</span>';
+    else trendEl.innerHTML = '<span class="neutral">→ Cukup</span>';
+}
+
+/* --- FUNGSI RENDER CHART LENGKAP (6 PARAMETER) --- */
+function renderChart(data) {
+    const ctx = document.getElementById('mainChart').getContext('2d');
+    
+    // Format Label Waktu
+    const labels = data.map(d => {
+        const date = new Date(d.timestamp);
+        return date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    });
+
+    // Definisi Dataset Lengkap
+    const datasets = [
+        // --- GRUP 1: SKALA KECIL (SUMBU KIRI) ---
+        {
+            label: 'Kelembapan (%)',
+            data: data.map(d => d.soil_moisture || 0),
+            borderColor: '#3b82f6', // Biru
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            borderWidth: 2,
+            tension: 0.4,
+            yAxisID: 'y', // Sumbu Kiri
+            hidden: false // Tampil default
+        },
+        {
+            label: 'Suhu Tanah (°C)',
+            data: data.map(d => d.soil_temp || 0),
+            borderColor: '#f59e0b', // Oranye
+            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+            borderWidth: 2,
+            tension: 0.4,
+            yAxisID: 'y', // Sumbu Kiri
+            hidden: false
+        },
+        {
+            label: 'Suhu Udara (°C)',
+            data: data.map(d => d.air_temp || 0),
+            borderColor: '#ef4444', // Merah
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            borderWidth: 2,
+            tension: 0.4,
+            yAxisID: 'y', // Sumbu Kiri
+            hidden: true // Default sembunyi agar tidak terlalu ramai (user bisa klik legend untuk tampilkan)
+        },
+
+        // --- GRUP 2: SKALA BESAR (SUMBU KANAN) ---
+        {
+            label: 'EC (µS/cm)',
+            data: data.map(d => d.soil_ec || 0),
+            borderColor: '#22c55e', // Hijau
+            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+            borderWidth: 2,
+            borderDash: [5, 5], // Garis putus-putus untuk membedakan tipe data
+            tension: 0.4,
+            yAxisID: 'y1', // Sumbu Kanan
+            hidden: false
+        },
+        {
+            label: 'TDS (ppm)',
+            data: data.map(d => d.soil_tds || 0),
+            borderColor: '#a855f7', // Ungu
+            backgroundColor: 'rgba(168, 85, 247, 0.1)',
+            borderWidth: 2,
+            tension: 0.4,
+            yAxisID: 'y1', // Sumbu Kanan
+            hidden: true // Default sembunyi
+        },
+        {
+            label: 'Salinitas',
+            data: data.map(d => d.soil_salinity || 0),
+            borderColor: '#06b6d4', // Cyan
+            backgroundColor: 'rgba(6, 182, 212, 0.1)',
+            borderWidth: 2,
+            tension: 0.4,
+            yAxisID: 'y1', // Sumbu Kanan
+            hidden: true // Default sembunyi
+        }
+    ];
+
+    if (chartInstance) {
+        chartInstance.data.labels = labels;
+        // Update semua dataset
+        for(let i=0; i<datasets.length; i++){
+            if(chartInstance.data.datasets[i]) {
+                chartInstance.data.datasets[i].data = datasets[i].data;
+            } else {
+                // Jika dataset baru (misal sebelumnya cuma 2), push
+                chartInstance.data.datasets.push(datasets[i]);
+            }
+        }
+        chartInstance.update();
+    } else {
+        chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    legend: { 
+                        position: 'top', 
+                        labels: { usePointStyle: true, color: '#94a3b8' },
+                        onClick: function(e, legendItem, legend) {
+                            // Default behavior + Logika custom jika perlu
+                            const index = legendItem.datasetIndex;
+                            const ci = legend.chart;
+                            if (ci.isDatasetVisible(index)) {
+                                ci.hide(index);
+                                legendItem.hidden = true;
+                            } else {
+                                ci.show(index);
+                                legendItem.hidden = false;
+                            }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                        titleColor: '#f8fafc',
+                        bodyColor: '#cbd5e1',
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderWidth: 1,
+                        padding: 10,
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) { label += ': '; }
+                                if (context.parsed.y !== null) { label += context.parsed.y; }
+                                return label;
+                            }
+                        }
+                    },
+                    zoom: {
+                        pan: { enabled: true, mode: 'x' },
+                        zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }
+                    }
+                },
+                scales: {
+                    x: { 
+                        grid: { display: false },
+                        ticks: { color: '#64748b', maxTicksLimit: 8 } 
+                    },
+                    // SUMBU KIRI (Suhu & Lembap)
+                    y: { 
+                        type: 'linear', display: true, position: 'left',
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#64748b' },
+                        title: { display: true, text: 'Suhu (°C) / Lembap (%)', color: '#3b82f6' }
+                    },
+                    // SUMBU KANAN (EC, TDS, Salinitas)
+                    y1: { 
+                        type: 'linear', display: true, position: 'right',
+                        grid: { drawOnChartArea: false }, // Agar grid tidak tumpang tindih
+                        ticks: { color: '#22c55e' },
+                        title: { display: true, text: 'EC / TDS / Salinitas', color: '#22c55e' }
+                    }
+                }
+            }
+        });
+    }
+}
+
+function normalize(val, min, max) { 
+    if (val == null || isNaN(val)) return 50;
+    let score = ((val - min) / (max - min)) * 100;
+    return Math.min(100, Math.max(0, score));
+}
+function calculateSoilIndex(d) { return Math.round(normalize(d.soil_moisture, 20, 60)*0.4 + normalize(d.soil_ec, 200, 1200)*0.3 + 30); }
+function calculateNutrientIndex(d) { return Math.round(normalize(d.soil_ec, 200, 1500)*0.5 + normalize(d.soil_tds, 100, 1000)*0.5); }
+function calculateWaterIndex(d) { return Math.round(normalize(d.soil_moisture, 30, 80)); }
+function calculateGrowthIndex(d) { return Math.round((calculateSoilIndex(d) + calculateNutrientIndex(d))/2); }
+
+
+/* ---------------- DATA: HISTORY & EXPORT ---------------- */
+let currentPage = 1;
+let rowsPerPage = 10;
+async function loadHistoryData() {
+    const start = document.getElementById('filterStartDate').value;
+    const end = document.getElementById('filterEndDate').value;
+    const tbody = document.querySelector('#historyTable tbody');
+    
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Sedang mengambil data...</td></tr>';
+
+    // Ambil data agak banyak (misal limit 1000) agar pagination client-side lancar
+    const { data, error } = await sb
+        .from('readings')
+        .select('*')
+        .eq('device_id', currentDeviceId)
+        .gte('timestamp', start + 'T00:00:00')
+        .lte('timestamp', end + 'T23:59:59')
+        .order('timestamp', {ascending: false})
+        .limit(1000); 
+
+    if(error) { 
+        tbody.innerHTML = `<tr><td colspan="6" style="color:var(--danger)">Error: ${error.message}</td></tr>`; 
+        return; 
+    }
+
+    // Simpan data mentah ke cache global
+    historyDataCache = data || [];
+    
+    // Reset ke halaman 1 setiap kali fetch baru
+    currentPage = 1;
+    
+    // Render Halaman Pertama
+    renderHistoryTable();
+}
+function renderHistoryTable() {
+    const tbody = document.querySelector('#historyTable tbody');
+    const totalRows = historyDataCache.length;
+    
+    if (totalRows === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Tidak ada data ditemukan pada rentang ini.</td></tr>';
+        document.getElementById('showingText').textContent = "Menampilkan 0 data";
+        updatePaginationButtons(0);
+        return;
+    }
+
+    // Hitung Start & End Index
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    const endIndex = Math.min(startIndex + rowsPerPage, totalRows);
+    
+    // Ambil potongan data (Slice) sesuai halaman
+    const pageData = historyDataCache.slice(startIndex, endIndex);
+
+    // Generate HTML
+    tbody.innerHTML = '';
+    pageData.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${new Date(row.timestamp).toLocaleString()}</td>
+            <td>${Number(row.soil_moisture).toFixed(1)}%</td>
+            <td>${Number(row.soil_temp).toFixed(1)}°C</td>
+            <td>${row.soil_ec} µS</td>
+            <td>${row.soil_salinity || '-'}</td>
+            <td>${Number(row.air_temp).toFixed(1)}°C</td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    // Update Info Teks (Menampilkan X-Y dari Z)
+    document.getElementById('showingText').textContent = `Menampilkan ${startIndex + 1}-${endIndex} dari ${totalRows} data`;
+    
+    // Update State Tombol
+    updatePaginationButtons(totalRows);
+}
+
+// 4. Fungsi Kontrol Tombol
+function updatePaginationButtons(totalRows) {
+    const totalPages = Math.ceil(totalRows / rowsPerPage);
+    
+    document.getElementById('pageIndicator').textContent = `Hal ${currentPage} / ${totalPages}`;
+    
+    const btnPrev = document.getElementById('btnPrev');
+    const btnNext = document.getElementById('btnNext');
+
+    // Disable Prev jika di halaman 1
+    btnPrev.disabled = (currentPage === 1);
+    
+    // Disable Next jika di halaman terakhir
+    btnNext.disabled = (currentPage === totalPages || totalPages === 0);
+}
+
+// 5. Event Handlers
+function prevPage() {
+    if (currentPage > 1) {
+        currentPage--;
+        renderHistoryTable();
+    }
+}
+
+function nextPage() {
+    const totalPages = Math.ceil(historyDataCache.length / rowsPerPage);
+    if (currentPage < totalPages) {
+        currentPage++;
+        renderHistoryTable();
+    }
+}
+
+function changePageSize() {
+    // Ambil value dari dropdown
+    const select = document.getElementById('rowsPerPage');
+    rowsPerPage = parseInt(select.value);
+    
+    // Reset ke halaman 1 agar tidak error index
+    currentPage = 1;
+    renderHistoryTable();
+}
+function exportData(type) {
+    if(!historyDataCache.length) { alert("Tidak ada data."); return; }
+    if(type === 'json') {
+        downloadFile(JSON.stringify(historyDataCache, null, 2), `soil_${new Date().toISOString()}.json`, 'application/json');
+    } else {
+        const headers = Object.keys(historyDataCache[0]).join(',');
+        const rows = historyDataCache.map(obj => Object.values(obj).join(',')).join('\n');
+        downloadFile(headers + '\n' + rows, `soil_${new Date().toISOString()}.csv`, 'text/csv');
+    }
+}
+function downloadFile(content, fileName, mimeType) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([content], {type: mimeType}));
+    a.download = fileName; a.click();
+}
+
+/* ---------------- ADMIN & DEVICES ---------------- */
+async function loadAdminData() {
+    if(currentUser.role !== 'admin') {
+        document.getElementById('view-admin').innerHTML = '<div class="card">Akses Ditolak. Halaman ini khusus Administrator.</div>';
+        return;
+    }
+    
+    const { data, error } = await sb.from('users').select('*').order('created_at', {ascending: false});
+    
+    if(error) { console.error(error); return; }
+
+    const tbody = document.querySelector('#userTable tbody');
+    tbody.innerHTML = '';
+    
+    data.forEach(u => {
+        // Escape string untuk mencegah error kutip saat passing ke fungsi onclick
+        const safeName = u.name.replace(/'/g, "\\'"); 
+        const safeEmail = u.email.replace(/'/g, "\\'");
+        
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${u.name}</td>
+            <td>${u.email}</td>
+            <td><span class="badge ${u.role==='admin'?'bg-warning':'bg-success'}">${u.role}</span></td>
+            <td>
+               <div style="display:flex; gap:6px;">
+                 <button class="btn-outline" style="padding:4px 8px; font-size:11px;" 
+                    onclick="openEditModal('${u.id}', '${safeName}', '${safeEmail}', '${u.role}')">Edit</button>
+                 <button class="btn-danger" style="padding:4px 8px; font-size:11px;" 
+                    onclick="deleteUser('${u.id}')">Hapus</button>
+               </div>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+/* ---------------- ADMIN: EDIT USER LOGIC ---------------- */
+function openEditModal(id, name, email, role) {
+    document.getElementById('editUserId').value = id;
+    document.getElementById('editName').value = name;
+    document.getElementById('editEmail').value = email;
+    document.getElementById('editRole').value = role;
+    document.getElementById('editPass').value = ''; // Reset password field
+    
+    document.getElementById('editUserModal').classList.add('open');
+}
+
+function closeEditModal() {
+    document.getElementById('editUserModal').classList.remove('open');
+}
+
+async function saveEditUser() {
+    const id = document.getElementById('editUserId').value;
+    const name = document.getElementById('editName').value;
+    const email = document.getElementById('editEmail').value;
+    const role = document.getElementById('editRole').value;
+    const newPass = document.getElementById('editPass').value;
+    
+    if(!name || !email) { alert("Nama dan Email tidak boleh kosong"); return; }
+
+    const updates = {
+        name: name,
+        email: email,
+        role: role
+    };
+
+    // Hanya update password jika field diisi
+    if(newPass && newPass.trim() !== "") {
+        updates.password = await hashPassword(newPass);
+    }
+
+    const { error } = await sb.from('users').update(updates).eq('id', id);
+
+    if(error) {
+        alert("Gagal update: " + error.message);
+    } else {
+        alert("Data pengguna berhasil diperbarui!");
+        closeEditModal();
+        loadAdminData(); // Refresh tabel
+    }
+}
+
+/* ---------------- ADMIN: ADD & DELETE (EXISTING) ---------------- */
+async function adminAddUser() {
+    const name = document.getElementById('newUserName').value;
+    const email = document.getElementById('newUserEmail').value;
+    const pass = document.getElementById('newUserPass').value;
+    const role = document.getElementById('newUserRole').value;
+    const msg = document.getElementById('adminMsg');
+    
+    if(!name || !email || !pass) { msg.textContent="Mohon lengkapi data"; return; }
+    
+    const hashed = await hashPassword(pass);
+    // Tambahkan created_at agar sorting rapi
+    const { error } = await sb.from('users').insert([{
+        name, email, password: hashed, role, created_at: new Date().toISOString()
+    }]);
+    
+    if(error) {
+        msg.textContent = "Gagal: " + error.message;
+        msg.style.color = 'var(--danger)';
+    } else {
+        msg.textContent = "User berhasil ditambahkan";
+        msg.style.color = 'var(--success)';
+        document.getElementById('newUserName').value = '';
+        document.getElementById('newUserEmail').value = '';
+        document.getElementById('newUserPass').value = '';
+        loadAdminData();
+    }
+}
+
+async function deleteUser(id) {
+    if(!confirm("Yakin ingin menghapus pengguna ini? Tindakan ini tidak dapat dibatalkan.")) return;
+    const { error } = await sb.from('users').delete().eq('id', id);
+    if(error) alert("Gagal hapus: " + error.message);
+    else loadAdminData();
+}
+function renderDeviceListUI() {
+    document.getElementById('deviceListContainer').innerHTML = `
+        <div class="card" style="display:flex; justify-content:space-between; align-items:center; background:var(--glass);">
+            <div style="display:flex; align-items:center; gap:15px;">
+                <div style="width:40px; height:40px; background:var(--accent); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:20px;">📟</div>
+                <div><div style="font-weight:bold; color:var(--text-main);">ESP32 Sensor</div><div class="text-muted" style="font-size:12px;">UUID: ${currentDeviceId}</div></div>
+            </div>
+            <div class="badge bg-success">Aktif</div>
+        </div>`;
+}
+</script>
+</body>
+</html>
