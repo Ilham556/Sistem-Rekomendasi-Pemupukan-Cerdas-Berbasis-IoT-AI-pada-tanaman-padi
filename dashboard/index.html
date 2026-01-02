@@ -10,7 +10,6 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 
 <style>
-  /* --- 1. VARIABLES & RESET --- */
   :root {
     --bg-body: #0f172a;
     --bg-sidebar: #020617;
@@ -24,7 +23,7 @@
     --warning: #f59e0b;
     --danger: #ef4444;
     --glass: rgba(255, 255, 255, 0.03);
-    --hover: rgba(255, 255, 255, 0.06); /* Ditambahkan untuk kode Anda */
+    --hover: rgba(255, 255, 255, 0.06); 
     --sidebar-width: 260px;
     --header-height: 70px;
   }
@@ -255,7 +254,7 @@
 
   /* 2. Kondisi Sidebar Mengecil (Collapsed) */
   .sidebar.collapsed {
-    width: 70px; /* Lebar saat mengecil */
+    width: 70px; 
   }
 
   /* Sembunyikan Teks saat collapsed */
@@ -325,18 +324,17 @@
       position: fixed; 
       height: 100%; 
       left: 0; top: 0;
-      width: 260px !important; /* Paksa lebar penuh saat muncul */
-      transform: translateX(-100%); /* Sembunyi total ke kiri */
+      width: 260px !important; 
+      transform: translateX(-100%); 
       transition: transform 0.3s ease;
       z-index: 999;
     }
 
-    /* 2. Sidebar Mobile: Muncul saat class .open aktif (via Burger) */
+
     .sidebar.open { 
       transform: translateX(0); 
     }
 
-    /* 3. Overlay Gelap saat sidebar mobile terbuka (Opsional, agar fokus) */
     .sidebar.open::before {
       content: '';
       position: fixed; top: 0; left: 260px; width: 100vw; height: 100%;
@@ -344,18 +342,14 @@
       z-index: -1;
     }
 
-    /* 4. Layout Utama Mobile */
     .app-container { flex-direction: column; }
     .main-content { width: 100%; margin-left: 0 !important; }
     .grid-2 { grid-template-columns: 1fr; }
     
-    /* 5. Tampilkan Tombol Burger di Header */
     .mobile-toggle { display: block; font-size: 24px; }
 
-    /* 6. SEMBUNYIKAN Tombol Panah (Desktop Toggle) di HP */
     .toggle-btn { display: none !important; }
     
-    /* 7. Pastikan fitur collapse desktop TIDAK jalan di HP */
     .sidebar.collapsed { width: 260px !important; }
     .sidebar.collapsed .logo-icon + span, 
     .sidebar.collapsed .nav-item span,
@@ -801,16 +795,13 @@ function toggleSidebarDesktop() {
     
     // Putar Icon Panah
     if (sidebar.classList.contains('collapsed')) {
-        // Jika tertutup, panah ke kanan (atau ikon menu)
-        toggleBtn.innerHTML = '<path d="M9 18l6-6-6-6"/>'; // Panah Kanan
-        brandName.style.display = 'none'; // Sembunyikan Judul
+        toggleBtn.innerHTML = '<path d="M9 18l6-6-6-6"/>'; 
+        brandName.style.display = 'none'; 
         
-        // Atur ikon logout agar muncul saat kecil
         document.querySelector('.logout-text').style.display = 'none';
         document.querySelector('.logout-icon').style.display = 'block';
     } else {
-        // Jika terbuka, panah ke kiri
-        toggleBtn.innerHTML = '<path d="M15 18l-6-6 6-6"/>'; // Panah Kiri
+        toggleBtn.innerHTML = '<path d="M15 18l-6-6 6-6"/>'; 
         brandName.style.display = 'block';
         
         document.querySelector('.logout-text').style.display = 'inline';
@@ -884,19 +875,16 @@ async function loadDashboardData() {
 }
 
 /* =========================================
-   FUNGSI REKOMENDASI (KODE ANDA)
+   FUNGSI REKOMENDASI
    ========================================= */
 
 function setChartRange(hours) {
-    chartLimit = hours; // Di aplikasi nyata, ini bisa mengatur 'limit' query database
+    chartLimit = hours; 
     
-    // Update tampilan tombol aktif
     document.querySelectorAll('.btn-filter').forEach(b => {
         b.classList.remove('active');
         if(b.textContent.includes(hours < 100 ? hours : '7')) b.classList.add('active');
     });
-
-    // Reload data dengan limit baru
     loadDashboardData(); 
 }
 function resetZoomChart() {
@@ -916,7 +904,6 @@ async function renderRecommendation(rec) {
 
     if (!error && savedRec && savedRec.length) {
       const r = savedRec[0];
-      // Normalize fields (they may be stored as newline-separated strings)
       const bullets = (typeof r.bullets === 'string') ? r.bullets.split('\n').map(s => s.trim()).filter(Boolean) : (r.bullets || []);
       const actions = (typeof r.actions === 'string') ? r.actions.split('\n').map(s => s.trim()).filter(Boolean) : (r.actions || []);
       const products = (typeof r.products === 'string') ? r.products.split('\n').map(s => s.trim()).filter(Boolean) : (r.products || []);
@@ -927,7 +914,6 @@ async function renderRecommendation(rec) {
   }
 
   if (!toRender) {
-    // 2) Try latest reading's rekomendasi column
     try {
       const { data: latestReading, error: readErr } = await sb
         .from('readings')
@@ -938,12 +924,11 @@ async function renderRecommendation(rec) {
         .maybeSingle();
 
       if (!readErr && latestReading && latestReading.rekomendasi) {
-        // rekomendasi column may be JSON string or plain text
         let parsed = null;
         try {
           parsed = JSON.parse(latestReading.rekomendasi);
         } catch (e) {
-          // not JSON, treat as plain newline-separated text
+   
         }
 
         if (parsed && typeof parsed === 'object') {
@@ -952,7 +937,6 @@ async function renderRecommendation(rec) {
           const products = parsed.products || [];
           toRender = { title: parsed.title || 'Rekomendasi', bullets, actions, products, timestamp: latestReading.timestamp };
         } else {
-          // plain text -> split lines
           const lines = String(latestReading.rekomendasi).split('\n').map(s => s.trim()).filter(Boolean);
           toRender = { title: lines[0] || 'Rekomendasi', bullets: lines.slice(1), actions: [], products: [], timestamp: latestReading.timestamp };
         }
@@ -962,7 +946,6 @@ async function renderRecommendation(rec) {
     }
   }
 
-  // 3) fallback to computed rec
   if (!toRender) {
     if (!rec) {
       recommendationArea.innerHTML = '<div class="muted small">Tidak ada rekomendasi saat ini</div>';
@@ -971,49 +954,42 @@ async function renderRecommendation(rec) {
     toRender = rec;
   }
 
-  // Get current recMode (ringkas or detail)
   let recMode = 'ringkas';
   try {
     const stored = localStorage.getItem('recMode') || document.getElementById('recMode').value;
     if (stored === 'detail') recMode = 'detail';
   } catch (e) {
-    // fallback to ringkas
   }
 
-  // Now render 'toRender' based on recMode
   let html = `<div class="rec"><strong>${toRender.title}</strong><div style="height:8px"></div>`;
 
   if (recMode === 'ringkas') {
-    // RINGKAS MODE: Show only first 2 bullets, no actions or products
     if (toRender.bullets && toRender.bullets.length) {
       const displayBullets = toRender.bullets.slice(0, 2);
       html += '<ul>';
       displayBullets.forEach(b => html += `<li>${b}</li>`);
       html += '</ul>';
       
-      // If there are more than 2 bullets, show a note
+
       if (toRender.bullets.length > 2) {
         html += `<div class="muted tiny" style="margin-top:6px">... dan ${toRender.bullets.length - 2} penjelasan lainnya (lihat mode Detail untuk lengkap)</div>`;
       }
     }
     html += '<div class="muted tiny" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">Mode: Ringkas (tampilkan mode Detail untuk aksi dan produk)</div>';
   } else {
-    // DETAIL MODE: Show everything
-    // 🧩 Daftar penjelasan utama
+
     if (toRender.bullets && toRender.bullets.length) {
       html += '<ul>';
       toRender.bullets.forEach(b => html += `<li>${b}</li>`);
       html += '</ul>';
     }
 
-    // ⚙️ Tindakan yang disarankan
     if (toRender.actions && toRender.actions.length) {
       html += '<div style="height:6px"></div><strong>Tindakan yang disarankan</strong><ul>';
       toRender.actions.forEach(a => html += `<li>${a}</li>`);
       html += '</ul>';
     }
 
-    // 🛒 Produk rekomendasi yang bisa diklik ke marketplace
     if (toRender.products && toRender.products.length) {
       html += `
         <div style="height:6px"></div>
@@ -1022,11 +998,10 @@ async function renderRecommendation(rec) {
       `;
 
       toRender.products.forEach(raw => {
-        // Products may arrive as object {name,dose,notes} or as a single string (from DB).
         let name = '';
         let dose = '';
         if (typeof raw === 'string') {
-          // Try to extract name and dose from common formats like "Name (dose): notes" or "Name (dose)"
+          
           const beforeColon = raw.split(':')[0];
           const parenMatch = beforeColon.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
           if (parenMatch) {
@@ -1041,7 +1016,6 @@ async function renderRecommendation(rec) {
           dose = raw.dose || raw.qty || '';
         }
 
-        // final fallbacks
         if (!name && raw) name = String(raw);
         if (!name) name = 'Produk';
 
@@ -1090,8 +1064,7 @@ function computeLocalRecommendation(latest) {
     let bullets = [];
     let actions = [];
     let products = [];
-    
-    // 1. Cek Rule-Based
+
     const m = Number(latest.soil_moisture);
     const t = Number(latest.soil_temp);
     const ec = Number(latest.soil_ec);
@@ -1114,7 +1087,6 @@ function computeLocalRecommendation(latest) {
         isCritical = true;
     }
 
-    // 2. Jika Aman, Jalankan KNN
     if (!isCritical) {
         if (knnModel) {
             const sample = [m, t, ec, Number(latest.soil_salinity), Number(latest.soil_tds), Number(latest.air_temp), Number(latest.air_humidity)];
@@ -1163,7 +1135,6 @@ function runKNN(sample) {
     return classes[bestIndex];
 }
 
-/* ---------------- HELPER & CHARTS ---------------- */
 function updateKPI(id, value) {
     document.getElementById(`kpi-${id}`).textContent = value;
     const trendEl = document.getElementById(`trend-${id}`);
@@ -1172,7 +1143,6 @@ function updateKPI(id, value) {
     else trendEl.innerHTML = '<span class="neutral">→ Cukup</span>';
 }
 
-/* --- FUNGSI RENDER CHART LENGKAP (6 PARAMETER) --- */
 function renderChart(data) {
     const ctx = document.getElementById('mainChart').getContext('2d');
     
@@ -1182,9 +1152,7 @@ function renderChart(data) {
         return date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     });
 
-    // Definisi Dataset Lengkap
     const datasets = [
-        // --- GRUP 1: SKALA KECIL (SUMBU KIRI) ---
         {
             label: 'Kelembapan (%)',
             data: data.map(d => d.soil_moisture || 0),
@@ -1212,20 +1180,19 @@ function renderChart(data) {
             backgroundColor: 'rgba(239, 68, 68, 0.1)',
             borderWidth: 2,
             tension: 0.4,
-            yAxisID: 'y', // Sumbu Kiri
-            hidden: true // Default sembunyi agar tidak terlalu ramai (user bisa klik legend untuk tampilkan)
+            yAxisID: 'y', 
+            hidden: true 
         },
 
-        // --- GRUP 2: SKALA BESAR (SUMBU KANAN) ---
         {
             label: 'EC (µS/cm)',
             data: data.map(d => d.soil_ec || 0),
             borderColor: '#22c55e', // Hijau
             backgroundColor: 'rgba(34, 197, 94, 0.1)',
             borderWidth: 2,
-            borderDash: [5, 5], // Garis putus-putus untuk membedakan tipe data
+            borderDash: [5, 5],
             tension: 0.4,
-            yAxisID: 'y1', // Sumbu Kanan
+            yAxisID: 'y1', 
             hidden: false
         },
         {
@@ -1235,8 +1202,8 @@ function renderChart(data) {
             backgroundColor: 'rgba(168, 85, 247, 0.1)',
             borderWidth: 2,
             tension: 0.4,
-            yAxisID: 'y1', // Sumbu Kanan
-            hidden: true // Default sembunyi
+            yAxisID: 'y1', 
+            hidden: true 
         },
         {
             label: 'Salinitas',
@@ -1245,19 +1212,19 @@ function renderChart(data) {
             backgroundColor: 'rgba(6, 182, 212, 0.1)',
             borderWidth: 2,
             tension: 0.4,
-            yAxisID: 'y1', // Sumbu Kanan
-            hidden: true // Default sembunyi
+            yAxisID: 'y1',
+            hidden: true
         }
     ];
 
     if (chartInstance) {
         chartInstance.data.labels = labels;
-        // Update semua dataset
+
         for(let i=0; i<datasets.length; i++){
             if(chartInstance.data.datasets[i]) {
                 chartInstance.data.datasets[i].data = datasets[i].data;
             } else {
-                // Jika dataset baru (misal sebelumnya cuma 2), push
+  
                 chartInstance.data.datasets.push(datasets[i]);
             }
         }
@@ -1316,14 +1283,14 @@ function renderChart(data) {
                         grid: { display: false },
                         ticks: { color: '#64748b', maxTicksLimit: 8 } 
                     },
-                    // SUMBU KIRI (Suhu & Lembap)
+                    
                     y: { 
                         type: 'linear', display: true, position: 'left',
                         grid: { color: 'rgba(255,255,255,0.05)' },
                         ticks: { color: '#64748b' },
                         title: { display: true, text: 'Suhu (°C) / Lembap (%)', color: '#3b82f6' }
                     },
-                    // SUMBU KANAN (EC, TDS, Salinitas)
+   
                     y1: { 
                         type: 'linear', display: true, position: 'right',
                         grid: { drawOnChartArea: false }, // Agar grid tidak tumpang tindih
@@ -1357,7 +1324,6 @@ async function loadHistoryData() {
     
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Sedang mengambil data...</td></tr>';
 
-    // Ambil data agak banyak (misal limit 1000) agar pagination client-side lancar
     const { data, error } = await sb
         .from('readings')
         .select('*')
@@ -1371,14 +1337,10 @@ async function loadHistoryData() {
         tbody.innerHTML = `<tr><td colspan="6" style="color:var(--danger)">Error: ${error.message}</td></tr>`; 
         return; 
     }
-
-    // Simpan data mentah ke cache global
     historyDataCache = data || [];
-    
-    // Reset ke halaman 1 setiap kali fetch baru
+
     currentPage = 1;
-    
-    // Render Halaman Pertama
+
     renderHistoryTable();
 }
 function renderHistoryTable() {
@@ -1414,14 +1376,11 @@ function renderHistoryTable() {
         tbody.appendChild(tr);
     });
 
-    // Update Info Teks (Menampilkan X-Y dari Z)
     document.getElementById('showingText').textContent = `Menampilkan ${startIndex + 1}-${endIndex} dari ${totalRows} data`;
-    
-    // Update State Tombol
+
     updatePaginationButtons(totalRows);
 }
 
-// 4. Fungsi Kontrol Tombol
 function updatePaginationButtons(totalRows) {
     const totalPages = Math.ceil(totalRows / rowsPerPage);
     
@@ -1430,14 +1389,13 @@ function updatePaginationButtons(totalRows) {
     const btnPrev = document.getElementById('btnPrev');
     const btnNext = document.getElementById('btnNext');
 
-    // Disable Prev jika di halaman 1
     btnPrev.disabled = (currentPage === 1);
     
-    // Disable Next jika di halaman terakhir
+
     btnNext.disabled = (currentPage === totalPages || totalPages === 0);
 }
 
-// 5. Event Handlers
+
 function prevPage() {
     if (currentPage > 1) {
         currentPage--;
@@ -1454,11 +1412,10 @@ function nextPage() {
 }
 
 function changePageSize() {
-    // Ambil value dari dropdown
+
     const select = document.getElementById('rowsPerPage');
     rowsPerPage = parseInt(select.value);
-    
-    // Reset ke halaman 1 agar tidak error index
+  
     currentPage = 1;
     renderHistoryTable();
 }
@@ -1493,7 +1450,6 @@ async function loadAdminData() {
     tbody.innerHTML = '';
     
     data.forEach(u => {
-        // Escape string untuk mencegah error kutip saat passing ke fungsi onclick
         const safeName = u.name.replace(/'/g, "\\'"); 
         const safeEmail = u.email.replace(/'/g, "\\'");
         
@@ -1521,7 +1477,7 @@ function openEditModal(id, name, email, role) {
     document.getElementById('editName').value = name;
     document.getElementById('editEmail').value = email;
     document.getElementById('editRole').value = role;
-    document.getElementById('editPass').value = ''; // Reset password field
+    document.getElementById('editPass').value = ''; 
     
     document.getElementById('editUserModal').classList.add('open');
 }
@@ -1557,7 +1513,7 @@ async function saveEditUser() {
     } else {
         alert("Data pengguna berhasil diperbarui!");
         closeEditModal();
-        loadAdminData(); // Refresh tabel
+        loadAdminData(); 
     }
 }
 
@@ -1610,3 +1566,4 @@ function renderDeviceListUI() {
 </body>
 
 </html>
+
