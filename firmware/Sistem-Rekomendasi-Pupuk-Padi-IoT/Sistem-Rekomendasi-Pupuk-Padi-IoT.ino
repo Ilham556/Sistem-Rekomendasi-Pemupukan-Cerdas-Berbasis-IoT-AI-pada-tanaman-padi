@@ -13,7 +13,7 @@
 #define TXD2 17
 #define DE_RE 4
 #define DHTPIN 15
-#define BUZZER 5  // Buzzer aktif HIGH
+#define BUZZER 5 
 #define OLED_RESET -1
 
 // ==== OLED Config ====
@@ -36,10 +36,10 @@ const char* menuItems[] = {
 const int menuCount = sizeof(menuItems) / sizeof(menuItems[0]);
 
 String rekomText = "";
-int scrollOffset = 0;     // posisi baris awal teks
-int totalLines = 0;       // total baris teks rekomendasi
+int scrollOffset = 0;     
+int totalLines = 0;       
 unsigned long lastMove = 0;
-const int scrollDelay = 200; // jeda antar scroll
+const int scrollDelay = 200; 
 long lastRekomendasiId = 0;
 
 
@@ -51,9 +51,9 @@ ModbusMaster node;
 DHTNEW dht(DHTPIN);
 
 // ==== Supabase ====
-const char* SUPABASE_URL = "https://rxthvgmkbxgblszhqnnv.supabase.co";
-const char* SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4dGh2Z21rYnhnYmxzemhxbm52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI0MjAzNjAsImV4cCI6MjA3Nzk5NjM2MH0.18hZwWhUCQJoH83kBRjV5PKGxIUgfs9D9f1Hea-pYeY";  // Ganti dengan key kamu (sebaiknya disimpan aman)
-const char* DEVICE_ID = "2384180d-c274-4308-8ca3-c2270302be82";  // UUID dari tabel devices Supabase
+const char* SUPABASE_URL = "YOUR_SUPABASE_URL";
+const char* SUPABASE_KEY = "YOUR_SUPABASE_KEY";  
+const char* DEVICE_ID = "YOUR_DEVICE_ID";  
 
 // ==== RS485 Control ====
 void preTransmission() { digitalWrite(DE_RE, HIGH); }
@@ -72,7 +72,7 @@ void setup() {
     Serial.println("✅ WiFi connected!");
   }
    pinMode(JOY_BTN, INPUT_PULLUP);
-  analogReadResolution(12); // pastikan pembacaan akurat (0-4095)
+  analogReadResolution(12); 
 
   // ==== RS485 init ====
   Serial2.begin(4800, SERIAL_8N1, RXD2, TXD2);
@@ -83,7 +83,7 @@ void setup() {
   node.begin(1, Serial2);
   node.preTransmission(preTransmission);
   node.postTransmission(postTransmission);
-  delay(1000); // delay penting untuk stabilisasi sensor RS485
+  delay(1000); 
 
   // ==== OLED Init ====
   Wire.begin(21, 22); // SDA, SCL
@@ -115,7 +115,7 @@ void loop() {
     checkBackToMenu();
   }
   else if (currentMode == LAST_RESULT) {
-    handleJoystickScroll();   // ✅ tambahkan ini
+    handleJoystickScroll();  
     checkBackToMenu();
   }
   else if (currentMode == WIFI_SETUP) {
@@ -127,7 +127,7 @@ void loop() {
 
 void showRealtime() {
   static unsigned long lastUpdate = 0;
-  if (millis() - lastUpdate < 3000) return;  // update tiap 3 detik
+  if (millis() - lastUpdate < 3000) return;  
   lastUpdate = millis();
 
   uint8_t result = node.readInputRegisters(0x0000, 5); 
@@ -230,7 +230,6 @@ void startRecommendation() {
     sumAirT += dht.getTemperature();
     sumAirH += dht.getHumidity();
 
-    // tampilkan progress di OLED
     display.clearDisplay();
     display.setCursor(0, 0);
     display.setTextSize(1);
@@ -239,7 +238,7 @@ void startRecommendation() {
     display.printf("Progress: %d%%", progress);
     display.display();
 
-    delay(1000); // ambil data tiap 1 detik
+    delay(1000); 
   }
 
   if (count == 0) {
@@ -256,7 +255,6 @@ void startRecommendation() {
   float airTemp = sumAirT / count;
   float airHum = sumAirH / count;
 
-  // tampilkan ringkasan di OLED
   display.clearDisplay();
   display.setCursor(0, 0);
   display.setTextSize(1);
@@ -267,17 +265,15 @@ void startRecommendation() {
   display.display();
   delay(3000);
 
-  // kirim ke Supabase satu kali saja
   displayMsg("Kirim ke server...");
   sendToSupabase(soilMoist, soilTemp, soilEC, soilSalinity, soilTDS, airTemp, airHum, true);
 
-  // tunggu rekomendasi hanya sekali
+
   displayMsg("Tunggu rekomendasi...");
-  delay(10000);  // beri waktu server JS memproses
+  delay(10000);  
 
   String rekom = getRecommendation();
 
-  // tampilkan rekomendasi akhir
   displayMsg("Rekomendasi:\n" + rekom);
   tone(BUZZER, 1500, 200);
 }
@@ -285,7 +281,7 @@ void startRecommendation() {
 String getRecommendation() {
   Serial.println("\n===============================");
   Serial.println("🔍 Memulai pengambilan rekomendasi dari Supabase...");
-  unsigned long startTime = millis(); // untuk ukur waktu
+  unsigned long startTime = millis();
 
   HTTPClient http;
   String url = String(SUPABASE_URL) +
@@ -309,7 +305,6 @@ String getRecommendation() {
     Serial.println(payload);
     Serial.printf("📦 Ukuran respons: %d bytes\n", payload.length());
 
-    // Perbaikan: beri ukuran JsonDocument
     StaticJsonDocument<1024> doc; 
     DeserializationError error = deserializeJson(doc, payload);
 
@@ -320,17 +315,15 @@ String getRecommendation() {
         String title = doc[0]["title"] | "Tanpa judul";
         String bullets = doc[0]["bullets"] | "";
 
-        Serial.println("🆔 ID: " + String(id)); // harus convert ke String
+        Serial.println("🆔 ID: " + String(id));
         Serial.println("📌 Title: " + title);
         Serial.println("📝 Bullets (mentah): " + bullets);
 
-        // Simpan ID terakhir agar bisa dicek lagi nanti
         if (id != 0) {
           lastRekomendasiId = id;
           Serial.println("💾 Disimpan sebagai lastRekomendasiId: " + String(lastRekomendasiId));
         }
 
-        // Rapikan bullet list biar mudah dibaca
         bullets.replace("[", "");
         bullets.replace("]", "");
         bullets.replace("\"", "");
@@ -423,8 +416,6 @@ String getRecommendationById(long rekomId) {
 }
 
 
-
-// === Fungsi tampilkan teks rekomendasi di OLED dengan scroll ===
 void showRecommendation() {
   display.clearDisplay();
   display.setTextSize(1);
@@ -444,7 +435,6 @@ void showRecommendation() {
   }
   totalLines = lines.size();
 
-  // tampilkan hanya 6 baris mulai dari scrollOffset
   for (int i = 0; i < 6; i++) {
     int idx = scrollOffset + i;
     if (idx < totalLines) {
@@ -453,7 +443,6 @@ void showRecommendation() {
     }
   }
 
-  // indikator posisi di bawah layar
   display.setCursor(0, 56);
   display.setTextSize(1);
   display.printf("[%d/%d]", scrollOffset + 1, totalLines);
@@ -461,16 +450,15 @@ void showRecommendation() {
   display.display();
 }
 
-// === Fungsi kontrol joystick scroll ===
 void handleJoystickScroll() {
   int y = analogRead(JOY_Y);
 
   if (millis() - lastMove > scrollDelay) {
-    if (y < 1000 && scrollOffset > 0) { // atas
+    if (y < 1000 && scrollOffset > 0) {
       scrollOffset--;
       showRecommendation();
       lastMove = millis();
-    } else if (y > 3800 && scrollOffset < totalLines - 6) { // bawah
+    } else if (y > 3800 && scrollOffset < totalLines - 6) { 
       scrollOffset++;
       showRecommendation();
       lastMove = millis();
@@ -487,13 +475,10 @@ void showLastResult() {
     return;
   }
 
-  // Ambil rekomendasi berdasarkan ID terakhir
   rekomText = getRecommendationById(lastRekomendasiId);
 
-  // Reset scroll
   scrollOffset = 0;
 
-  // Tampilkan teks di OLED dengan fungsi scroll
   showRecommendation();
 }
 
@@ -570,7 +555,7 @@ void handleMenuSelect(int index) {
 void sendToSupabase(float soilM, float soilT, float EC, float SAL, float TDS, float airT, float airH, bool isRec) {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("⚠️ WiFi disconnected, skipping upload...");
-    return; [cite_start]// [cite: 97]
+    return;  
   }
 
   HTTPClient http;
@@ -579,21 +564,18 @@ void sendToSupabase(float soilM, float soilT, float EC, float SAL, float TDS, fl
   http.addHeader("apikey", SUPABASE_KEY);
   http.addHeader("Authorization", "Bearer " + String(SUPABASE_KEY));
 
-  // Naikkan sedikit buffer jika perlu
+
   StaticJsonDocument<512> doc;
-  doc["device_id"] = DEVICE_ID;     [cite_start]// [cite: 98]
+  doc["device_id"] = DEVICE_ID;     
   doc["soil_moisture"] = soilM;
   doc["soil_temp"] = soilT;
   doc["soil_ec"] = EC;
   doc["soil_salinity"] = SAL;
   doc["soil_tds"] = TDS;
-  doc["air_temp"] = airT;           [cite_start]// [cite: 99]
+  doc["air_temp"] = airT;          
   doc["air_humidity"] = airH;
   
-  // === BAGIAN BARU ===
-  // Mengirim status is_recommendation (true/false)
   doc["is_recommendation"] = isRec; 
-  // ===================
 
   String json;
   serializeJson(doc, json);
@@ -601,10 +583,11 @@ void sendToSupabase(float soilM, float soilT, float EC, float SAL, float TDS, fl
   int httpResponseCode = http.POST(json);
 
   if (httpResponseCode > 0) {
-    Serial.printf("✅ Supabase response: %d\n", httpResponseCode); [cite_start]// [cite: 100]
+    Serial.printf("✅ Supabase response: %d\n", httpResponseCode); 
   } else {
     Serial.printf("❌ POST failed: %s\n", http.errorToString(httpResponseCode).c_str());
   }
 
   http.end();
 }
+
